@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset='utf-8' />
+	<title>Animate a point along a route</title>
+	<meta name='viewpoint' content='initial-scale=1,maximum-scale=1,user-scalable=no' />
+	<script src='https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.js'></script>
+	<link href='https://api.tiles.mapbox.com/mapbox-gl-js/v1.1.1/mapbox-gl.css' rel='stylesheet' />
+	<style>
+		body { margin:0; padding:0; }
+		#map { position:absolute; top:0; bottom:0; width:100%; }
+	</style>
+</head>
+<body>
+ 
+	<style>
+	.overlay {
+		position: absolute;
+		top: 10px;
+		left: 10px;
+	}
+ 
+	.overlay button {
+		font:600 12px/20px 'Helvetica Neue', Arial, Helvetica, sans-serif;
+		background-color: #;
+		color: #fff;
+		display: inline-block;
+		margin: 0;
+		padding: 10px 20px;
+		border: none;
+		cursor: pointer;
+		border-radius: 3px;
+	}
+ 
+	.overlay button:hover {
+		background-color:#4ea0da;
+	}
+	</style>
+	<script src='https://api.tiles.mapbox.com/mapbox.js/plugins/turf/v2.0.0/turf.min.js' charset='utf-8'></script>
+	<div id='map'></div>
+	<div class='overlay'>
+		<button id='replay'>Replay</button>
+	</div>
+
+
+
+
+
+
+	<script>
+
+			//В скрипте помимо отображения движущейся по линии точки присутствует тестовое отображение точки с описанием. Попоробуем сделать движущейся точку с описанием
+
+		mapboxgl.accessToken = 'pk.eyJ1Ijoic3Rhcm9kb29tIiwiYSI6ImNqd2NneDFiejBzeGc0M29qb3NqZXp0NGsifQ.n6ZcGQleRiOLb3Fn_Jq-tg';
+		var map = new mapboxgl.Map({
+			container: 'map',
+			style: 'mapbox://styles/mapbox/streets-v11',
+			center: [37, 55],
+			zoom: 2
+
+		})
+
+
+		var popup = new mapboxgl.Popup()
+			.setLngLat([37.6156, 55.7522])
+			.setText('Hello world')
+			.addTo(map)
+
+		var marker = new mapboxgl.Marker()
+			.setLngLat([38.5, 56.5])
+			.setPopup(popup)
+			.addTo(map)
+
+		// San Francisco
+		var sandnes = [5.7352, 58.8524];
+ 
+		// Washington DC
+		var moscow = [37.6156, 55.7522];
+
+		var incatops = [-71.5132, -16.4106];
+
+		// A simple line from origin to destination.
+		var route = {
+			"type": "FeatureCollection",
+			"features": [{
+				"type": "Feature",
+				"geometry": {
+					"type": "LineString",
+					"coordinates": [
+						sandnes,
+						moscow
+					]
+				}
+			}]
+		};
+
+		var route_inca = {
+			"type": "FeatureCollection",
+			"features": [{
+				"type": "Feature",
+				"geometry": {
+					"type": "LineString",
+					"coordinates": [
+						incatops,
+						moscow
+					]
+				}
+			}]
+		};
+
+
+
+		// Coordinates are initially set to origin.
+		var point = {
+			"type": "FeatureCollection",
+			"features": [{
+				"type": "Feature",
+				"properties": {"description": "<strong>Make it Mount Pleasant</strong><p>Make it Mount Pleasant is a handmade and vintage market and afternoon of live entertainment and kids activities. 12:00-6:00 p.m.</p>"},
+				"geometry": {
+					"type": "Point",
+					"coordinates": sandnes
+				}
+			}]
+		};
+
+		var point_inca = {
+			"type": "FeatureCollection",
+			"features": [{
+				"type": "Feature",
+				"properties": {"description": "<strong>Make it Mount Pleasant</strong><p>Make it Mount Pleasant is a handmade and vintage market and afternoon of live entertainment and kids activities. 12:00-6:00 p.m.</p>"},
+				"geometry": {
+					"type": "Point",
+					"coordinates": incatops
+				}
+			}]
+		};
+
+
+	
+
+		// Calculate the distance in kilometers between route start/end point.
+		var lineDistance = turf.lineDistance(route.features[0], 'kilometers');
+		var lineDistance_inca = turf.lineDistance(route_inca.features[0], 'kilometers');
+
+
+		var arc = [];
+		var arc_inca = [];
+		// Number of steps to use in the arc and animation, more steps means
+		// a smoother arc and animation, but too many steps will result in a
+		// low frame rate
+		var steps = 500;
+		var steps_inca = 500;
+		// Draw an arc between the `origin` & `destination` of the two points
+		for (var i = 0; i < lineDistance; i += lineDistance / steps) {
+			var segment = turf.along(route.features[0], i, 'kilometers');
+			arc.push(segment.geometry.coordinates);
+		}
+		route.features[0].geometry.coordinates = arc;
+		var counter = 0;
+
+		for (var x = 0; x < lineDistance_inca; x += lineDistance_inca / steps_inca) {
+			var segment_inca = turf.along(route_inca.features[0], x, 'kilometers');
+			arc_inca.push(segment_inca.geometry.coordinates);
+		}
+		// Update the route with calculated arc coordinates
+		
+		route_inca.features[0].geometry.coordinates = arc_inca;
+		// Used to increment the value of the point measurement against the route.
+		
+		var counter_inca = 0;
+
+
+
+
+
+		map.on('load', function () {
+		// Add a source and layer displaying a point which will be animated in a circle.
+		map.addSource('route', {
+			"type": "geojson",
+			"data": route
+		});
+
+		map.addSource('route_inca', {
+			"type": "geojson",
+			"data": route_inca
+		});
+
+		map.addSource('point', {
+			"type": "geojson",
+			"data": point
+		});
+
+		map.addSource('point_inca', {
+			"type": "geojson",
+			"data": point_inca
+		});
+
+
+		map.addLayer({
+			"id": "route",
+			"source": "route",
+			"type": "line",
+			"paint": {
+				"line-width": 2,
+				"line-color": "#007cbf"
+			}
+		});
+
+		map.addLayer({
+			"id": "route_inca",
+			"source": "route_inca",
+			"type": "line",
+			"paint": {
+				"line-width": 2,
+				"line-color": "#007cbf"
+			}
+		});
+
+		
+		map.addLayer({
+        	"id": "point",
+        	"source": "point",
+        	"type": "symbol",
+        	"layout": {
+            	"icon-image": "airport-15",
+            	//"text-field": "Cargo",
+            	"icon-rotate": ["get", "bearing"],
+            	"icon-rotation-alignment": "map",
+            	"icon-allow-overlap": true,
+            	"icon-ignore-placement": true
+        	}
+		});
+
+
+		map.addLayer({
+        	"id": "point_inca",
+        	"source": "point_inca",
+        	"type": "symbol",
+        	"layout": {
+            	"icon-image": "airport-15",
+            	//"text-field": "Cargo",
+            	"icon-rotate": ["get", "bearing"],
+            	"icon-rotation-alignment": "map",
+            	"icon-allow-overlap": true,
+            	"icon-ignore-placement": true
+        	}
+		});
+
+		map.addLayer({
+
+        "id": "places",
+        "type": "symbol",
+        "source": {
+            "type": "geojson",
+            "data": {
+                "type": "FeatureCollection",
+                "features": [{
+                    "type": "Feature",
+                    "properties": {
+                        "description": "<strong>Make it Mount Pleasant</strong><p>Make it Mount Pleasant is a handmade and vintage market and afternoon of live entertainment and kids activities. 12:00-6:00 p.m.</p>",
+                    
+                        "icon": "theatre"
+                    },
+                
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": [-77.038659, 38.931567]
+                    }
+
+                }]
+
+            }
+        },
+        "layout": {
+            "icon-image": "{icon}-15",
+            "icon-allow-overlap": true
+        }
+    });
+
+
+		
+
+    map.on('click', 'point', function(e) {
+        // Change the cursor style as a UI indicator.
+        map.getCanvas().style.cursor = 'pointer';
+
+        var coordinates = e.features[0].geometry.coordinates.slice();
+        var description = e.features[0].properties.description;
+
+        // Ensure that if the map is zoomed out such that multiple
+        // copies of the feature are visible, the popup appears
+        // over the copy being pointed to.
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+        }
+
+        // Populate the popup and set its coordinates
+        // based on the feature found.
+        new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML(description)
+			.addTo(map);
+    });
+
+    map.on('click', 'point_inca', function(e) {
+        // Change the cursor style as a UI indicator.
+        map.getCanvas().style.cursor = 'pointer';
+
+        var coordinates = e.features[0].geometry.coordinates.slice();
+        var description = e.features[0].properties.description;
+
+        // Ensure that if the map is zoomed out such that multiple
+        // copies of the feature are visible, the popup appears
+        // over the copy being pointed to.
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+        }
+
+        // Populate the popup and set its coordinates
+        // based on the feature found.
+        new mapboxgl.Popup()
+			.setLngLat(coordinates)
+			.setHTML(description)
+			.addTo(map);
+    });
+
+    	function animate() {
+			// Update point geometry to a new position based on counter denoting
+			// the index to access the arc.
+			point.features[0].geometry.coordinates = route.features[0].geometry.coordinates[counter];
+			
+// Calculate the bearing to ensure the icon is rotated to match the route arc
+// The bearing is calculate between the current point and the next point, except
+// at the end of the arc use the previous point and the current point
+			point.features[0].properties.bearing = turf.bearing(
+				turf.point(route.features[0].geometry.coordinates[counter >= steps ? counter - 1 : counter]),
+				turf.point(route.features[0].geometry.coordinates[counter >= steps ? counter : counter + 1])
+			);
+
+			
+ 
+// Update the source with this new data.
+			map.getSource('point').setData(point);
+			
+ 
+// Request the next frame of animation so long the end has not been reached.
+			if (counter < steps) {
+				requestAnimationFrame(animate);
+			}
+ 
+			counter = counter + 1;
+
+			
+		
+		}
+
+ 
+		document.getElementById('replay').addEventListener('click', function() {
+// Set the coordinates of the original point back to origin
+			point.features[0].geometry.coordinates = sandnes;
+			//point_inca.features[0].geometry.coordinates = incatops;
+			
+ 
+// Update the source layer
+			map.getSource('point').setData(point);
+			//map.getSource('point_inca').setData(point_inca);
+			
+ 
+// Reset the counter
+			counter = 0;
+			//counter_inca = 0;
+			
+ 
+// Restart the animation.
+			animate(counter);
+			
+		});
+			
+		
+ 
+// Start the animation.
+		animate(counter);
+		//animate_inca(counter_inca);
+		
+		
+// !!!		});
+
+
+		function animate_inca() {
+			// Update point geometry to a new position based on counter denoting
+			// the index to access the arc.
+			point_inca.features[0].geometry.coordinates = route_inca.features[0].geometry.coordinates[counter_inca];
+			
+// Calculate the bearing to ensure the icon is rotated to match the route arc
+// The bearing is calculate between the current point and the next point, except
+// at the end of the arc use the previous point and the current point
+		
+			point_inca.features[0].properties.bearing = turf.bearing(
+				turf.point(route_inca.features[0].geometry.coordinates[counter_inca >= steps_inca ? counter_inca - 1 : counter_inca]),
+				turf.point(route_inca.features[0].geometry.coordinates[counter_inca >= steps_inca ? counter_inca : counter_inca + 1])
+			);
+ 
+// Update the source with this new data.
+			
+			map.getSource('point_inca').setData(point_inca);
+ 
+// Request the next frame of animation so long the end has not been reached.
+			
+
+			if (counter_inca < steps_inca) {
+				requestAnimationFrame(animate_inca);
+			}
+			
+ 
+			counter_inca = counter_inca + 1;
+		
+		};
+
+ 
+		document.getElementById('replay').addEventListener('click', function() {
+// Set the coordinates of the original point back to origin
+			
+			point_inca.features[0].geometry.coordinates = incatops;
+ 
+// Update the source layer
+			
+			map.getSource('point_inca').setData(point_inca);
+ 
+// Reset the counter
+			
+			counter_inca = 0;
+ 
+// Restart the animation.
+			
+			animate_inca(counter_inca);
+		});
+			
+		
+ 
+// Start the animation.
+		
+		
+		animate_inca(counter_inca);
+		});
+
+
+		
+
+
+	</script>
+
+</body>
+</html>
